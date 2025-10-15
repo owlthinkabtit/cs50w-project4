@@ -3,13 +3,22 @@ from django.db import IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.core.paginator import Paginator
 
 from .models import User, Post
 
 
 def index(request):
-    rows = Post.objects.select_related("author").all()
-    return HttpResponse("<br>".join(f"{p.id}: @{p.author.username} — {p.content}" for p in rows) or "No posts yet.")
+    qs = Post.objects.select_related("author").prefetch_related("likes").all()
+    paginator = Paginator(qs, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, "network/index.html", {
+        "page_obj": page_obj,
+        "posts": page_obj.object_list,
+        "total_posts": paginator.count,
+    })
 
 
 def login_view(request):

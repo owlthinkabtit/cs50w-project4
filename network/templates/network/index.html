@@ -1,5 +1,27 @@
 {% extends "network/layout.html" %}
 
 {% block body %}
-    TODO
+    <h1>All Posts</h1>
+
+    {% for post in posts %}
+        <article class="post">
+            <strong>@{{ post.author.username }}</strong>
+            <p>{{ post.content }}</p>
+            <small>{{ post.created_at|date:"Y-m-d H:i" }} · ❤ {{ post.likes.count }}</small>
+        </article>
+    {% empty %}
+        <p>No posts yet.</p>
+    {% endfor %}    
+
+    <nav aria-label="pagination" style="margin-top:1rem; display:flex; gap:.75rem; align-items:center;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">← Previous</a>  
+      {% endif %}
+      
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">Next →</a>
+      {% endif %}  
+    </nav>
 {% endblock %}
