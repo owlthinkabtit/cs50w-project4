@@ -1,9 +1,13 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.urls import reverse
 from django.core.paginator import Paginator
+import json
+
 
 from .models import User, Post
 
@@ -71,3 +75,28 @@ def register(request):
         return HttpResponseRedirect(reverse("index"))
     else:
         return render(request, "network/register.html")
+
+@require_http_methods(["GET", "POST"])
+def api_posts(request):
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+        
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        
+        content = data.get("content", "").strip()
+        if not content:
+            return JsonResponse({"error": "Post cannot be empty"}, status=400)
+        
+        post = Post.objects.create(author=request.user, content=content)
+        return JsonResponse ({
+            "id": post.id,
+            "author": post.author.username,
+            "content": post.content,
+            "created_at": post.created_at.strftime("%Y-%m-%d %H:%M"),
+            "likes": 0
+        }, status=201)
+    return JsonResponse({"message": "ok"})

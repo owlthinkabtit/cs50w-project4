@@ -1,27 +1,83 @@
 {% extends "network/layout.html" %}
 
 {% block body %}
-    <h1>All Posts</h1>
+{% if user.is_authenticated %}
+  <form id="new-post" style="margin-bottom:1rem">
+    {% csrf_token %}
+    <textarea id="content" rows="3" maxlength="500" placeholder="What's on your mind?" required></textarea><br>
+    <button type="submit">Post</button>
+  </form>
+{% endif %}
 
-    {% for post in posts %}
-        <article class="post">
-            <strong>@{{ post.author.username }}</strong>
-            <p>{{ post.content }}</p>
-            <small>{{ post.created_at|date:"Y-m-d H:i" }} · ❤ {{ post.likes.count }}</small>
-        </article>
-    {% empty %}
-        <p>No posts yet.</p>
-    {% endfor %}    
+<h1>All Posts ({{ total_posts }})</h1>
 
-    <nav aria-label="pagination" style="margin-top:1rem; display:flex; gap:.75rem; align-items:center;">
-      {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}">← Previous</a>  
-      {% endif %}
-      
-      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+<div id="post-list">
+  {% for post in posts %}
+    <article class="post">
+      <strong>@{{ post.author.username }}</strong>
+      <p>{{ post.content }}</p>
+      <small>{{ post.created_at|date:"Y-m-d H:i" }} · ❤ {{ post.likes.count }}</small>
+    </article>
+  {% empty %}
+    <p>No posts yet.</p>
+  {% endfor %}
+</div>
 
-      {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}">Next →</a>
-      {% endif %}  
-    </nav>
+<nav aria-label="pagination" style="margin-top:1rem; display:flex; gap:.75rem; align-items:center;">
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+</nav>
+
+<script>
+function getCookie(name){
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if(parts.length === 2) return parts.pop().split(';').shift();
+}
+const csrftoken = getCookie('csrftoken');
+
+window.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('new-post');
+  if (!form) return; // not logged in
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button');
+    const textarea = document.getElementById('content');
+    const content = textarea.value.trim();
+    if (!content) return alert('Write something first!');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch("{% url 'api_posts' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrftoken },
+        body: JSON.stringify({ content })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Error ${res.status}: could not post`);
+        return;
+      }
+
+      const data = await res.json();
+      const list = document.getElementById('post-list');
+      const el = document.createElement('article');
+      el.className = 'post';
+      el.innerHTML = `<strong>@${data.author}</strong>
+                      <p>${data.content}</p>
+                      <small>${data.created_at} · ❤ ${data.likes}</small>`;
+      list.insertBefore(el, list.firstChild || null);
+      textarea.value = "";
+    } catch (err) {
+      console.error(err);
+      alert('Network error — try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+</script>
 {% endblock %}
