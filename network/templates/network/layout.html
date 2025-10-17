@@ -41,9 +41,11 @@
             </div>
           </nav>
         
-        <div class="body">
+        <div class="container mt-4">
             {% block body %}
             {% endblock %}
         </div>
+        {% block extra_js %}
+        {% endblock %}
     </body>
 </html>
