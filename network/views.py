@@ -1,9 +1,9 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.core.paginator import Paginator
 import json
@@ -100,3 +100,49 @@ def api_posts(request):
             "likes": 0
         }, status=201)
     return JsonResponse({"message": "ok"})
+
+def profile(request, username):
+    profile_user = get_object_or_404(User, username=username)
+
+    posts = (profile_user.posts
+             .select_related("author")
+             .prefetch_related("likes")
+             .all())
+    paginator = Paginator(posts, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    is_self = request.user.is_authenticated and request.user.id == profile_user.id
+    is_following = (
+        request.user.is_authenticated
+        and not is_self
+        and profile_user in request.user.following.all()
+    )
+
+    context = {
+        "profile_user": profile_user,
+        "followers_count": profile_user.followers.count(),
+        "following_count": profile_user.following.count(),
+        "is_self": is_self,
+        "is_following": is_following,
+        "page_obj": page_obj,
+        "posts": page_obj.object_list,
+    }
+    return render(request, "network/profile.html", context)
+
+@require_POST
+@login_required
+def toggle_follow(request, username):
+    target = get_object_or_404(User, username=username)
+    if target == request.user:
+        return JsonResponse({"error": "You cannot follow yourself."}, status=400)
+    
+    if target in request.user.following.all():
+        request.user.following.remove(target)
+        state = "unfollowed"
+    else: 
+        request.user.following.add(target)
+        state = "followed"
+    return JsonResponse({
+        "state": state,
+        "followers": target.followers.count()
+    })        

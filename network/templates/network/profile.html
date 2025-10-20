@@ -1,0 +1,98 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="mb-1">@{{ profile_user.username }}</h2>
+    <div class="text-muted">
+      <span id="followers-count">{{ followers_count }}</span> followers ·
+      {{ following_count }} following
+    </div>
+  </div>
+
+  {% if user.is_authenticated and not is_self %}
+    <button id="followBtn"
+            class="btn {% if is_following %}btn-outline-danger{% else %}btn-outline-primary{% endif %}">
+      {% if is_following %}Unfollow{% else %}Follow{% endif %}
+    </button>
+  {% endif %}
+</div>
+
+<hr class="mb-4"/>
+
+<h4 class="mb-3">Posts</h4>
+
+<div id="post-list">
+  {% for post in posts %}
+    <div class="card mb-3 shadow-sm">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">
+          {{ post.created_at|date:"F j, Y, g:i a" }}
+        </h6>
+        <p class="card-text">{{ post.content }}</p>
+        <small class="text-muted">❤ {{ post.likes.count }}</small>
+      </div>
+    </div>
+  {% empty %}
+    <p>No posts yet.</p>
+  {% endfor %}
+</div>
+
+<nav class="d-flex justify-content-between align-items-center mt-4">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-secondary">← Previous</a>
+  {% else %}<span></span>{% endif %}
+
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-secondary">Next →</a>
+  {% else %}<span></span>{% endif %}
+</nav>
+
+{% endblock %}
+
+{% block extra_js %}
+{% if user.is_authenticated and not is_self %}
+<script>
+function getCookie(name){
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if(parts.length === 2) return parts.pop().split(';').shift();
+}
+const csrftoken = getCookie('csrftoken');
+
+const btn = document.getElementById('followBtn');
+btn?.addEventListener('click', async () => {
+  btn.disabled = true;
+  try {
+    const res = await fetch("{% url 'toggle_follow' profile_user.username %}", {
+      method: "POST",
+      headers: { "X-CSRFToken": csrftoken }
+    });
+    const data = await res.json();
+    if(!res.ok){ alert(data.error || "Error"); return; }
+
+    
+    if(data.state === "followed"){
+      btn.textContent = "Unfollow";
+      btn.classList.remove("btn-outline-primary");
+      btn.classList.add("btn-outline-danger");
+    } else {
+      btn.textContent = "Follow";
+      btn.classList.remove("btn-outline-danger");
+      btn.classList.add("btn-outline-primary");
+    }
+    
+    const fc = document.getElementById('followers-count');
+    fc.textContent = data.followers;
+  } catch(e){
+    console.error(e);
+    alert("Network error");
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+{% endif %}
+{% endblock %}
