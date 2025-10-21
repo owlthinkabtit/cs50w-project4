@@ -145,4 +145,7 @@ def toggle_follow(request, username):
     return JsonResponse({
         "state": state,
         "followers": target.followers.count()
-    })        
+    }) 
+@login_required
+def following_feed(request):
+    return render(request, "network/following.html")     
