@@ -1,5 +1,38 @@
 {% extends "network/layout.html" %}
+
 {% block body %}
-<h2>Following Feed</h2>
-<p>Coming soon...</p>
+<h2 class="mb-3">Following Feed</h2>
+
+{% if posts %}
+  {% for post in posts %}
+    <div class="card mb-3 shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">
+          <a href="{% url 'profile' post.author.username %}">@{{ post.author.username }}</a>
+        </h5>
+        <p class="card-text">{{ post.content }}</p>
+        <p class="card-text">
+          <small class="text-muted">
+            {{ post.created_at|date:"F j, Y, g:i a" }} · ❤ {{ post.likes.count }}
+          </small>
+        </p>
+      </div>
+    </div>
+  {% endfor %}
+
+  <nav class="d-flex justify-content-between align-items-center mt-4">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-secondary">← Previous</a>
+    {% else %}<span></span>{% endif %}
+
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-secondary">Next →</a>
+    {% else %}<span></span>{% endif %}
+  </nav>
+
+{% else %}
+  <p>You’re not following anyone yet — go explore and follow some users!</p>
+{% endif %}
 {% endblock %}

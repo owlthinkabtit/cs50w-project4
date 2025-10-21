@@ -148,4 +148,37 @@ def toggle_follow(request, username):
     }) 
 @login_required
 def following_feed(request):
-    return render(request, "network/following.html")     
+    following_users = request.user.following.all()
+    posts = (
+        Post.objects
+            .filter(author__in=following_users)
+            .select_related("author")
+            .prefetch_related("likes")
+            .order_by("-created_at")
+    )   
+    paginator = Paginator(posts, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "posts": page_obj.object_list,
+        "page_obj": page_obj,
+        "total_posts": paginator.count,
+    }
+
+    return render(request, "network/following.html", context)
+
+@require_POST
+@login_required
+def toggle_like(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    u = request.user
+
+    if post.likes.filter(id=u.id).exists():
+        post.likes.remove(u)
+        liked = False
+
+    else:
+        post.likes.add(u)
+        liked = True
+
+    return JsonResponse({"liked": liked, "likes": post.likes.count(), "id": post.id})
