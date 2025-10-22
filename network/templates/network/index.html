@@ -1,18 +1,14 @@
-{% extends "network/layout.html" %} {% block body %} {% if user.is_authenticated %}
+{% extends "network/layout.html" %}
+
+{% block body %}
+{% if user.is_authenticated %}
 <div class="card mb-4">
   <div class="card-body">
     <h5 class="card-title">New Post</h5>
     <form id="new-post">
       {% csrf_token %}
       <div class="form-group mb-3">
-        <textarea
-          id="content"
-          class="form-control"
-          rows="3"
-          maxlength="500"
-          placeholder="What's on your mind?"
-          required
-        ></textarea>
+        <textarea id="content" class="form-control" rows="3" maxlength="500" placeholder="What's on your mind?" required></textarea>
       </div>
       <button type="submit" class="btn btn-primary">Post</button>
     </form>
@@ -27,29 +23,29 @@
   <div class="card mb-3 shadow-sm">
     <div class="card-body">
       <h5 class="card-title">
-        <a href="{% url 'profile' post.author.username %}"
-          >@{{ post.author.username }}</a
-        >
+        <a href="{% url 'profile' post.author.username %}">@{{ post.author.username }}</a>
       </h5>
-      <p class="card-text">{{ post.content }}</p>
+
+      <p class="card-text post-content">{{ post.content }}</p>
       <p class="card-text">
         <small class="text-muted">
-          {{ post.created_at|date:"F j, Y, g:i a" }} · ❤ {{ post.likes.count }}
+          {{ post.created_at|date:"F j, Y, g:i a" }}
+          {% if post.updated_at and post.updated_at > post.created_at %}(edited){% endif %}
+          · ❤ {{ post.likes.count }}
         </small>
       </p>
-
       <div class="d-flex align-items-center gap-2">
+        {% if user == post.author %}
+        <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="{{ post.id }}">Edit</button>
+        {% endif %}
         <button
           class="btn btn-sm btn-outline-danger like-btn {% if user.is_authenticated and user in post.likes.all %}active{% endif %}"
           data-id="{{ post.id }}"
           aria-pressed="{% if user.is_authenticated and user in post.likes.all %}true{% else %}false{% endif %}"
           {% if not user.is_authenticated %}disabled title="Log in to like"{% endif %}
-        >
-          ❤
-        </button>
-        <span class="like-count" data-id="{{ post.id }}"
-          >{{ post.likes.count }}</span
-        >
+        >❤</button>
+
+        <span class="like-count" data-id="{{ post.id }}">{{ post.likes.count }}</span>
       </div>
     </div>
   </div>
@@ -60,130 +56,129 @@
 
 <nav class="d-flex justify-content-between align-items-center mt-4">
   {% if page_obj.has_previous %}
-  <a
-    href="?page={{ page_obj.previous_page_number }}"
-    class="btn btn-outline-secondary"
-    >← Previous</a
-  >
-  {% else %}
-  <span></span>
-  {% endif %}
+  <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-secondary">← Previous</a>
+  {% else %}<span></span>{% endif %}
 
   <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
 
   {% if page_obj.has_next %}
-  <a
-    href="?page={{ page_obj.next_page_number }}"
-    class="btn btn-outline-secondary"
-    >Next →</a
-  >
-  {% else %}
-  <span></span>
-  {% endif %}
+  <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-secondary">Next →</a>
+  {% else %}<span></span>{% endif %}
 </nav>
+{% endblock %}
 
-{% endblock %} {% block extra_js %}
+{% block extra_js %}
 <script>
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-  }
-  const csrftoken = getCookie("csrftoken");
+  function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);if(p.length===2) return p.pop().split(';').shift();}
+  const csrftoken = getCookie('csrftoken');
 
-  function likeHandlerFactory(containerId) {
+  function likeHandlerFactory(containerId){
     const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".like-btn");
-      if (!btn) return;
-
-      const postId = btn.dataset.id;
-      if (!postId) return;
-
+    if(!container) return;
+    container.addEventListener('click', async (e)=>{
+      const btn = e.target.closest('.like-btn'); if(!btn) return;
+      const postId = btn.dataset.id; if(!postId) return;
       btn.disabled = true;
-      try {
-        const res = await fetch(`/api/posts/${postId}/like`, {
-          method: "POST",
-          headers: { "X-CSRFToken": csrftoken },
-        });
+      try{
+        const res = await fetch(`/api/posts/${postId}/like`, { method:'POST', headers:{'X-CSRFToken': csrftoken} });
         const data = await res.json();
-        if (!res.ok) {
-          alert(data.error || "Error");
-          return;
-        }
-
-        const countEl = container.querySelector(
-          `.like-count[data-id="${postId}"]`
-        );
-        if (countEl) countEl.textContent = data.likes;
-
-        btn.classList.toggle("active", data.liked);
-        btn.setAttribute("aria-pressed", data.liked ? "true" : "false");
-      } catch (err) {
-        console.error(err);
-        alert("Network error");
-      } finally {
-        btn.disabled = false;
-      }
+        if(!res.ok){ alert(data.error||'Error'); return; }
+        const countEl = container.querySelector(`.like-count[data-id="${postId}"]`);
+        if(countEl) countEl.textContent = data.likes;
+        btn.classList.toggle('active', data.liked);
+        btn.setAttribute('aria-pressed', data.liked ? 'true' : 'false');
+      } finally { btn.disabled = false; }
     });
   }
 
-  window.addEventListener("DOMContentLoaded", () => {
-    likeHandlerFactory("post-list");
+  function editHandlerFactory(containerId){
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    container.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.edit-btn'); if(!btn) return;
+      const card = btn.closest('.card-body');
+      const contentEl = card.querySelector('.post-content'); // ← only content
+      const original = contentEl.textContent.trim();
 
-    const form = document.getElementById("new-post");
-    if (!form) return;
+      // swap in textarea
+      const ta = document.createElement('textarea');
+      ta.className = 'form-control mb-2';
+      ta.value = original;
+      contentEl.replaceWith(ta);
+      btn.textContent = 'Save';
 
-    form.addEventListener("submit", async (e) => {
+      btn.onclick = async ()=>{
+        const text = ta.value.trim();
+        if(!text) return alert("Post can't be empty.");
+        try{
+          const res = await fetch(`/api/posts/${btn.dataset.id}`, {
+            method:'PUT',
+            headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+            body: JSON.stringify({content: text})
+          });
+          const data = await res.json();
+          if(!res.ok) return alert(data.error || 'Error saving post');
+
+          // put content back
+          const p = document.createElement('p');
+          p.className = 'card-text post-content';
+          p.textContent = data.content;
+          ta.replaceWith(p);
+
+          // update timestamp line if backend sent updated_at
+          const timeSmall = card.querySelector('.text-muted');
+          const countEl = card.querySelector('.like-count');
+          if(timeSmall && data.updated_at){
+            const likes = countEl ? countEl.textContent : '{{ post.likes.count }}';
+            timeSmall.textContent = `${data.updated_at} · ❤ ${likes}`;
+          }
+
+          btn.textContent = 'Edit';
+          btn.onclick = null; // restore delegated handler on next click
+        } catch(e){ console.error(e); alert('Network error'); }
+      };
+    });
+  }
+
+  // wire handlers
+  likeHandlerFactory('post-list');
+  editHandlerFactory('post-list');
+
+  // new-post handler (unchanged, but make sure you prepend a full card)
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const form = document.getElementById('new-post'); if(!form) return;
+    form.addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const btn = form.querySelector("button");
-      const textarea = document.getElementById("content");
-      const content = textarea.value.trim();
-      if (!content) return alert("Write something first!");
+      const btn = form.querySelector('button');
+      const ta = document.getElementById('content');
+      const content = ta.value.trim(); if(!content) return alert('Write something first!');
       btn.disabled = true;
-
-      try {
+      try{
         const res = await fetch("{% url 'api_posts' %}", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrftoken,
-          },
-          body: JSON.stringify({ content }),
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-CSRFToken': csrftoken},
+          body: JSON.stringify({content})
         });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          alert(err.error || `Error ${res.status}: could not post`);
-          return;
-        }
-
+        if(!res.ok){ const err = await res.json().catch(()=>({})); alert(err.error||'Error'); return; }
         const data = await res.json();
 
-        const list = document.getElementById("post-list");
-        const card = document.createElement("div");
-        card.className = "card mb-3 shadow-sm";
+        const list = document.getElementById('post-list');
+        const card = document.createElement('div');
+        card.className = 'card mb-3 shadow-sm';
         card.innerHTML = `
           <div class="card-body">
             <h5 class="card-title"><a href="/u/${data.author}">@${data.author}</a></h5>
-            <p class="card-text">${data.content}</p>
-            <p class="card-text"><small class="text-muted">${data.created_at}</small></p>
+            <p class="card-text post-content">${data.content}</p>
+            <p class="card-text"><small class="text-muted">${data.created_at} · ❤ 0</small></p>
             <div class="d-flex align-items-center gap-2">
               <button class="btn btn-sm btn-outline-danger like-btn" data-id="${data.id}" aria-pressed="false">❤</button>
               <span class="like-count" data-id="${data.id}">0</span>
+              <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${data.id}">Edit</button>
             </div>
-          </div>
-        `;
+          </div>`;
         list.insertBefore(card, list.firstChild || null);
-        textarea.value = "";
-      } catch (err) {
-        console.error(err);
-        alert("Network error — try again.");
-      } finally {
-        btn.disabled = false;
-      }
+        ta.value = '';
+      } finally { btn.disabled = false; }
     });
   });
 </script>

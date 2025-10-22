@@ -7,6 +7,8 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.core.paginator import Paginator
 import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
 
 from .models import User, Post
@@ -182,3 +184,32 @@ def toggle_like(request, post_id):
         liked = True
 
     return JsonResponse({"liked": liked, "likes": post.likes.count(), "id": post.id})
+
+@csrf_exempt
+@login_required
+def edit_post(request, post_id):
+    try: 
+        post = Post.objects.get(pk=post_id, author=request.user)
+    except Post.DoesNotExist:
+        return JsonResponse({"error": "Post not found or not yours."}, status=404)
+
+    if request.method != "PUT":
+        return JsonResponse({"error": "PUT request required."}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    content = data.get("content", "").strip()
+    if not content:
+        return JsonResponse({"error": "Post cannot be empty."}, status=400)
+
+    post.content = content    
+    post.updated_at = timezone.now()
+    post.save()
+    return JsonResponse({
+        "message": "Post updated successfully", 
+        "content": post.content,
+        "updated_at": post.updated_at.strftime("%B %d, %Y, %I:%M %p")
+        })        
