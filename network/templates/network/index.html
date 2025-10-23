@@ -100,7 +100,6 @@
       const contentEl = card.querySelector('.post-content'); // ← only content
       const original = contentEl.textContent.trim();
 
-      // swap in textarea
       const ta = document.createElement('textarea');
       ta.className = 'form-control mb-2';
       ta.value = original;
@@ -134,17 +133,17 @@
           }
 
           btn.textContent = 'Edit';
-          btn.onclick = null; // restore delegated handler on next click
+          btn.onclick = null; 
         } catch(e){ console.error(e); alert('Network error'); }
       };
     });
   }
 
-  // wire handlers
+  
   likeHandlerFactory('post-list');
   editHandlerFactory('post-list');
 
-  // new-post handler (unchanged, but make sure you prepend a full card)
+  
   window.addEventListener('DOMContentLoaded', ()=>{
     const form = document.getElementById('new-post'); if(!form) return;
     form.addEventListener('submit', async (e)=>{

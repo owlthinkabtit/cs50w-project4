@@ -1,38 +1,93 @@
-{% extends "network/layout.html" %}
-
-{% block body %}
+{% extends "network/layout.html" %} {% block body %}
 <h2 class="mb-3">Following Feed</h2>
 
 {% if posts %}
+<div id="post-list">
   {% for post in posts %}
-    <div class="card mb-3 shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title">
-          <a href="{% url 'profile' post.author.username %}">@{{ post.author.username }}</a>
-        </h5>
-        <p class="card-text">{{ post.content }}</p>
-        <p class="card-text">
-          <small class="text-muted">
-            {{ post.created_at|date:"F j, Y, g:i a" }} · ❤ {{ post.likes.count }}
-          </small>
-        </p>
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">
+        <a href="{% url 'profile' post.author.username %}">
+          @{{ post.author.username }}
+        </a>
+      </h5>
+
+      <p class="card-text post-content">{{ post.content }}</p>
+
+      <p class="card-text">
+        <small class="text-muted">
+          {{ post.created_at|date:"F j, Y, g:i a" }} {% if post.updated_at and post.updated_at > post.created_at %} (edited) {% endif %} · ❤ {{ post.likes.count }}
+        </small>
+      </p>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          class="btn btn-sm btn-outline-danger like-btn {% if user.is_authenticated and user in post.likes.all %}active{% endif %}"
+          data-id="{{ post.id }}"
+          aria-pressed="{% if user.is_authenticated and user in post.likes.all %}true{% else %}false{% endif %}"
+          {%
+          if
+          not
+          user.is_authenticated
+          %}disabled
+          title="Log in to like"
+          {%
+          endif
+          %}
+        >
+          ❤
+        </button>
+
+        <span class="like-count" data-id="{{ post.id }}">
+          {{ post.likes.count }}
+        </span>
+
+        {% if user == post.author %}
+        <button
+          class="btn btn-sm btn-outline-secondary edit-btn"
+          data-id="{{ post.id }}"
+        >
+          Edit
+        </button>
+        {% endif %}
       </div>
     </div>
+  </div>
   {% endfor %}
+</div>
 
-  <nav class="d-flex justify-content-between align-items-center mt-4">
-    {% if page_obj.has_previous %}
-      <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-secondary">← Previous</a>
-    {% else %}<span></span>{% endif %}
 
-    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+<nav class="d-flex justify-content-between align-items-center mt-4">
+  {% if page_obj.has_previous %}
+  <a
+    href="?page={{ page_obj.previous_page_number }}"
+    class="btn btn-outline-secondary"
+    >← Previous</a
+  >
+  {% else %}
+  <span></span>
+  {% endif %}
 
-    {% if page_obj.has_next %}
-      <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-secondary">Next →</a>
-    {% else %}<span></span>{% endif %}
-  </nav>
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+  {% if page_obj.has_next %}
+  <a
+    href="?page={{ page_obj.next_page_number }}"
+    class="btn btn-outline-secondary"
+    >Next →</a
+  >
+  {% else %}
+  <span></span>
+  {% endif %}
+</nav>
 
 {% else %}
-  <p>You’re not following anyone yet — go explore and follow some users!</p>
-{% endif %}
+<p>You’re not following anyone yet — go explore and follow some users!</p>
+{% endif %} {% endblock %} {% block extra_js %}
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    likeHandlerFactory("post-list");
+    editHandlerFactory("post-list");
+  });
+</script>
 {% endblock %}
