@@ -1,4 +1,6 @@
-{% extends "network/layout.html" %} {% block body %}
+{% extends "network/layout.html" %}
+
+{% block body %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <h2 class="mb-1">@{{ profile_user.username }}</h2>
@@ -49,6 +51,7 @@
           Edit
         </button>
         {% endif %}
+
         <button
           class="btn btn-sm btn-outline-danger like-btn {% if user.is_authenticated and user in post.likes.all %}active{% endif %}"
           data-id="{{ post.id }}"
@@ -57,7 +60,6 @@
         >
           ❤
         </button>
-
         <span class="like-count" data-id="{{ post.id }}">{{ post.likes.count }}</span>
       </div>
     </div>
@@ -69,25 +71,18 @@
 
 <nav class="d-flex justify-content-between align-items-center mt-4">
   {% if page_obj.has_previous %}
-  <a
-    href="?page={{ page_obj.previous_page_number }}"
-    class="btn btn-outline-secondary"
-    >← Previous</a
-  >
+  <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline-secondary">← Previous</a>
   {% else %}<span></span>{% endif %}
 
   <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
 
   {% if page_obj.has_next %}
-  <a
-    href="?page={{ page_obj.next_page_number }}"
-    class="btn btn-outline-secondary"
-    >Next →</a
-  >
+  <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline-secondary">Next →</a>
   {% else %}<span></span>{% endif %}
 </nav>
+{% endblock %}
 
-{% endblock %} {% block extra_js %} {% if user.is_authenticated and not is_self %}
+{% block extra_js %}
 <script>
   function getCookie(name) {
     const value = `; ${document.cookie}`;
@@ -96,48 +91,42 @@
   }
   const csrftoken = getCookie("csrftoken");
 
-  const btn = document.getElementById("followBtn");
-  btn?.addEventListener("click", async () => {
-    btn.disabled = true;
-    try {
-      const res = await fetch(
-        "{% url 'toggle_follow' profile_user.username %}",
-        {
+  
+  const followBtn = document.getElementById("followBtn");
+  if (followBtn) {
+    followBtn.addEventListener("click", async () => {
+      followBtn.disabled = true;
+      try {
+        const res = await fetch("{% url 'toggle_follow' profile_user.username %}", {
           method: "POST",
           headers: { "X-CSRFToken": csrftoken },
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error || "Error");
+
+        if (data.state === "followed") {
+          followBtn.textContent = "Unfollow";
+          followBtn.classList.replace("btn-outline-primary", "btn-outline-danger");
+        } else {
+          followBtn.textContent = "Follow";
+          followBtn.classList.replace("btn-outline-danger", "btn-outline-primary");
         }
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Error");
-        return;
-      }
 
-      if (data.state === "followed") {
-        btn.textContent = "Unfollow";
-        btn.classList.remove("btn-outline-primary");
-        btn.classList.add("btn-outline-danger");
-      } else {
-        btn.textContent = "Follow";
-        btn.classList.remove("btn-outline-danger");
-        btn.classList.add("btn-outline-primary");
+        document.getElementById("followers-count").textContent = data.followers;
+      } catch (e) {
+        console.error(e);
+        alert("Network error");
+      } finally {
+        followBtn.disabled = false;
       }
+    });
+  }
 
-      const fc = document.getElementById("followers-count");
-      fc.textContent = data.followers;
-    } catch (e) {
-      console.error(e);
-      alert("Network error");
-    } finally {
-      btn.disabled = false;
-    }
-  });
-</script>
-<script>
+  
   window.addEventListener("DOMContentLoaded", () => {
+    console.log("Profile page JS loaded ✅");
     likeHandlerFactory("post-list");
     editHandlerFactory("post-list");
   });
 </script>
-{% endif %} 
 {% endblock %}

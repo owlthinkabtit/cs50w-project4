@@ -2,50 +2,153 @@
 
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>{% block title %}Social Network{% endblock %}</title>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-        <link href="{% static 'network/styles.css' %}" rel="stylesheet">
-    </head>
-    <body>
+  <head>
+    <title>{% block title %}Social Network{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+    <link href="{% static 'network/styles.css' %}" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <a class="navbar-brand" href="#">Network</a>
 
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <a class="navbar-brand" href="#">Network</a>
-          
-            <div>
-              <ul class="navbar-nav mr-auto">
-                {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'profile' user.username %}"><strong>{{ user.username }}</strong></a>
-                    </li>
-                {% endif %}
-                <li class="nav-item">
-                  <a class="nav-link" href="{% url 'index' %}">All Posts</a>
-                </li>
-                {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'following' %}">Following</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">Log Out</a>
-                    </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">Log In</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'register' %}">Register</a>
-                    </li>
-                {% endif %}
-              </ul>
-            </div>
-          </nav>
-        
-        <div class="container mt-4">
-            {% block body %}
-            {% endblock %}
-        </div>
-        {% block extra_js %}
-        {% endblock %}
-    </body>
+      <div>
+        <ul class="navbar-nav mr-auto">
+          {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'profile' user.username %}"
+              ><strong>{{ user.username }}</strong></a
+            >
+          </li>
+          {% endif %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'index' %}">All Posts</a>
+          </li>
+          {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'following' %}">Following</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'logout' %}">Log Out</a>
+          </li>
+          {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'login' %}">Log In</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'register' %}">Register</a>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container mt-4">{% block body %} {% endblock %}</div>
+    {% block extra_js %} {% endblock %}
+    <script>
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+      }
+      const csrftoken = getCookie("csrftoken");
+
+      function likeHandlerFactory(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.addEventListener("click", async (e) => {
+          const btn = e.target.closest(".like-btn");
+          if (!btn) return;
+
+          const postId = btn.dataset.id;
+          if (!postId) return;
+
+          btn.disabled = true;
+          try {
+            const res = await fetch(`/api/posts/${postId}/like`, {
+              method: "POST",
+              headers: { "X-CSRFToken": csrftoken },
+            });
+            const data = await res.json();
+            if (!res.ok) return alert(data.error || "Error");
+
+            const countEl = container.querySelector(
+              `.like-count[data-id="${postId}"]`
+            );
+            if (countEl) countEl.textContent = data.likes;
+
+            btn.classList.toggle("active", data.liked);
+            btn.setAttribute("aria-pressed", data.liked ? "true" : "false");
+          } catch (err) {
+            console.error(err);
+            alert("Network error");
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      }
+
+      function editHandlerFactory(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        container.addEventListener("click", async (e) => {
+          const btn = e.target.closest(".edit-btn");
+          if (!btn) return;
+
+          const postCard = btn.closest(".card-body");
+          const postText = postCard.querySelector(".post-content");
+          const original = postText.textContent.trim();
+
+          const textarea = document.createElement("textarea");
+          textarea.className = "form-control mb-2";
+          textarea.value = original;
+          postText.replaceWith(textarea);
+
+          btn.textContent = "Save";
+          btn.classList.add("saving");
+
+          btn.onclick = async () => {
+            const content = textarea.value.trim();
+            if (!content) return alert("Post can't be empty.");
+
+            try {
+              const res = await fetch(`/api/posts/${btn.dataset.id}`, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrftoken,
+                },
+                body: JSON.stringify({ content }),
+              });
+              const data = await res.json();
+              if (!res.ok) return alert(data.error || "Error saving post");
+
+              const newP = document.createElement("p");
+              newP.className = "card-text post-content";
+              newP.textContent = data.content;
+              textarea.replaceWith(newP);
+              btn.textContent = "Edit";
+              btn.classList.remove("saving");
+              btn.onclick = null;
+
+              
+              const meta = postCard.querySelector("small.text-muted");
+              if (meta && !meta.textContent.includes("(edited)")) {
+                meta.textContent += " (edited)";
+              }
+            } catch (err) {
+              console.error(err);
+              alert("Network error");
+            }
+          };
+        });
+      }
+    </script>
+  </body>
 </html>
