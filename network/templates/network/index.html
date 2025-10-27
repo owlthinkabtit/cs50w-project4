@@ -69,9 +69,6 @@
 
 {% block extra_js %}
 <script>
-  function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);if(p.length===2) return p.pop().split(';').shift();}
-  const csrftoken = getCookie('csrftoken');
-
   function likeHandlerFactory(containerId){
     const container = document.getElementById(containerId);
     if(!container) return;
@@ -97,7 +94,7 @@
     container.addEventListener('click', (e)=>{
       const btn = e.target.closest('.edit-btn'); if(!btn) return;
       const card = btn.closest('.card-body');
-      const contentEl = card.querySelector('.post-content'); // ← only content
+      const contentEl = card.querySelector('.post-content');
       const original = contentEl.textContent.trim();
 
       const ta = document.createElement('textarea');
@@ -118,13 +115,13 @@
           const data = await res.json();
           if(!res.ok) return alert(data.error || 'Error saving post');
 
-          // put content back
+          
           const p = document.createElement('p');
           p.className = 'card-text post-content';
           p.textContent = data.content;
           ta.replaceWith(p);
 
-          // update timestamp line if backend sent updated_at
+          
           const timeSmall = card.querySelector('.text-muted');
           const countEl = card.querySelector('.like-count');
           if(timeSmall && data.updated_at){
@@ -140,8 +137,8 @@
   }
 
   
-  likeHandlerFactory('post-list');
   editHandlerFactory('post-list');
+  likeHandlerFactory('post-list');
 
   
   window.addEventListener('DOMContentLoaded', ()=>{
@@ -170,9 +167,9 @@
             <p class="card-text post-content">${data.content}</p>
             <p class="card-text"><small class="text-muted">${data.created_at} · ❤ 0</small></p>
             <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${data.id}">Edit</button>
               <button class="btn btn-sm btn-outline-danger like-btn" data-id="${data.id}" aria-pressed="false">❤</button>
               <span class="like-count" data-id="${data.id}">0</span>
-              <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${data.id}">Edit</button>
             </div>
           </div>`;
         list.insertBefore(card, list.firstChild || null);

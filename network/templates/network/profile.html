@@ -84,49 +84,45 @@
 
 {% block extra_js %}
 <script>
-  function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-  }
-  const csrftoken = getCookie("csrftoken");
+  document.addEventListener("DOMContentLoaded", () => {
+    const followBtn = document.getElementById("followBtn");
+    if (followBtn) {
+      followBtn.addEventListener("click", async () => {
+        followBtn.disabled = true;
+        try {
+          const res = await fetch("{% url 'toggle_follow' profile_user.username %}", {
+            method: "POST",
+            headers: { "X-CSRFToken": csrftoken },
+          });
+          const data = await res.json();
+          if (!res.ok) return alert(data.error || "Error");
 
-  
-  const followBtn = document.getElementById("followBtn");
-  if (followBtn) {
-    followBtn.addEventListener("click", async () => {
-      followBtn.disabled = true;
-      try {
-        const res = await fetch("{% url 'toggle_follow' profile_user.username %}", {
-          method: "POST",
-          headers: { "X-CSRFToken": csrftoken },
-        });
-        const data = await res.json();
-        if (!res.ok) return alert(data.error || "Error");
+          if (data.state === "followed") {
+            followBtn.textContent = "Unfollow";
+            followBtn.classList.replace("btn-outline-primary", "btn-outline-danger");
+          } else {
+            followBtn.textContent = "Follow";
+            followBtn.classList.replace("btn-outline-danger", "btn-outline-primary");
+          }
 
-        if (data.state === "followed") {
-          followBtn.textContent = "Unfollow";
-          followBtn.classList.replace("btn-outline-primary", "btn-outline-danger");
-        } else {
-          followBtn.textContent = "Follow";
-          followBtn.classList.replace("btn-outline-danger", "btn-outline-primary");
+          document.getElementById("followers-count").textContent = data.followers;
+        } catch (e) {
+          console.error(e);
+          alert("Network error");
+        } finally {
+          followBtn.disabled = false;
         }
-
-        document.getElementById("followers-count").textContent = data.followers;
-      } catch (e) {
-        console.error(e);
-        alert("Network error");
-      } finally {
-        followBtn.disabled = false;
-      }
-    });
-  }
-
-  
-  window.addEventListener("DOMContentLoaded", () => {
-    console.log("Profile page JS loaded ✅");
-    likeHandlerFactory("post-list");
-    editHandlerFactory("post-list");
+      });
+    }
+    const postList = document.getElementById("post-list");
+    if (postList) {
+      console.log("Profile: attaching like/edit handlers");
+      likeHandlerFactory("post-list");
+      editHandlerFactory("post-list");
+    } else {
+      console.warn("Profile: no post-list found yet!");
+    }
   });
 </script>
 {% endblock %}
+
